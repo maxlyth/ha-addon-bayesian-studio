@@ -28,26 +28,32 @@ CONFIG_DIR = os.environ.get("HASS_CONFIG", "/config")
 # HA history-graph colors (from frontend source: timeline-color.ts)
 # ---------------------------------------------------------------------------
 
-_ACTIVE_COLOR = "#FDD835"    # amber/yellow — HA binary_sensor on
-_INACTIVE_COLOR = "#e0e0e0"  # grey — HA binary_sensor off
-_UNKNOWN_COLOR = "#f5f5f5"   # very light grey — unavailable/unknown
+_ACTIVE_COLOR = "#FDD835"              # amber/yellow — HA binary_sensor on
+_INACTIVE_COLOR = "#e0e0e0"            # grey — HA binary_sensor off
+_UNKNOWN_COLOR = "rgba(128,128,128,0.15)"  # translucent grey — works on light and dark
+
+_BINARY_CHART_H = 40
+_NUMERIC_CHART_H = 120
+_SPINNER_HTML = (
+    '<div style="height:{h}px;display:flex;align-items:center;'
+    'justify-content:center;font-size:12px;color:inherit;">'
+    '⏳ Loading history…</div>'
+)
 
 # ---------------------------------------------------------------------------
-# Shared Plotly layout — HA design tokens
+# Shared Plotly layout — transparent backgrounds so Streamlit theme applies
 # ---------------------------------------------------------------------------
 
 _HA_CHART = dict(
-    font=dict(family="Roboto, Noto, sans-serif", size=12, color="#141414"),
-    paper_bgcolor="white",
-    plot_bgcolor="#f3f3f3",
+    font=dict(family="Roboto, Noto, sans-serif", size=12),
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
     xaxis=dict(
-        gridcolor="#e6e6e6",
-        linecolor="#e0e0e0",
         tickfont=dict(size=11),
         tickformat="%b %d\n%H:%M",
         dtick=43200000,  # 12h in ms
     ),
-    yaxis=dict(gridcolor="#e6e6e6", linecolor="#e0e0e0", tickfont=dict(size=11)),
+    yaxis=dict(tickfont=dict(size=11)),
     margin=dict(l=40, r=20, t=50, b=40),
 )
 
@@ -203,7 +209,7 @@ def _build_binary_chart(
             mid_x = x0 + (x1 - x0) / 2
             fig.add_annotation(
                 x=mid_x, y=0.5, text=label, showarrow=False,
-                font=dict(size=10, color="#000000"),
+                font=dict(size=10),
                 xanchor="center", yanchor="middle",
             )
 
@@ -224,8 +230,8 @@ def _build_binary_chart(
             showticklabels=False, showgrid=False, zeroline=False,
             range=[0, 1], fixedrange=True,
         ),
-        paper_bgcolor="white",
-        plot_bgcolor="white",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
     )
     return fig
 
@@ -316,8 +322,7 @@ def _fill_obs_charts(
 ) -> None:
     """Fill observation chart placeholders after trace is computed."""
     rows = trace["rows"]
-    for i, obs, slot in slots:
-        platform = obs.get("platform", "")
+    for i, platform, obs, slot in slots:
         entity_id = obs.get("entity_id", "")
 
         if platform == "numeric_state" and entity_id:
@@ -326,6 +331,9 @@ def _fill_obs_charts(
             if fig.data:
                 with slot.container():
                     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+            else:
+                with slot.container():
+                    st.caption("No data in selected range")
         else:
             # state / template — use obs_results
             results_col = [r["obs_results"][i] for r in rows if i < len(r["obs_results"])]
@@ -333,6 +341,9 @@ def _fill_obs_charts(
                 fig = _build_binary_chart(results_col, dt_vals, end_dt)
                 with slot.container():
                     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+            else:
+                with slot.container():
+                    st.caption("No data in selected range")
 
 
 # ---------------------------------------------------------------------------
@@ -433,12 +444,20 @@ obs_chart_slots = []
 for i, obs in enumerate(working["observations"]):
     platform = obs.get("platform", "?")
     eid = obs.get("entity_id", obs.get("value_template", "")[:40])
-    label = f"`{platform}` · {eid}"
-    with st.expander(label, expanded=False):
-        # Condition inputs
-        _render_condition_inputs(obs, i, selected, timelines)
 
-        # Prob sliders
+    # Label — always visible
+    st.markdown(f"**`{platform}`** · {eid}")
+
+    # Chart placeholder — visible immediately with spinner matching final chart height
+    h = _NUMERIC_CHART_H if platform == "numeric_state" else _BINARY_CHART_H
+    slot = st.empty()
+    with slot.container():
+        st.markdown(_SPINNER_HTML.format(h=h), unsafe_allow_html=True)
+    obs_chart_slots.append((i, platform, copy.copy(obs), slot))
+
+    # Settings expander — collapsed by default
+    with st.expander("Settings", expanded=False):
+        _render_condition_inputs(obs, i, selected, timelines)
         col_t, col_f = st.columns(2)
         with col_t:
             obs["prob_given_true"] = st.slider(
@@ -457,9 +476,8 @@ for i, obs in enumerate(working["observations"]):
                 key=f"pgf_{selected}_{i}",
             )
 
-        # Chart placeholder (filled after trace computation)
-        slot = st.empty()
-        obs_chart_slots.append((i, copy.copy(obs), slot))
+    if i < len(working["observations"]) - 1:
+        st.divider()
 
 # Reset button (enabled only when config has changed)
 is_dirty = _config_changed(working, observations_orig, prior_orig, threshold_orig)

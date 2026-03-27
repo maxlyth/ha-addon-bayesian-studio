@@ -21,28 +21,15 @@ st.markdown("""
 html, body, [class*="st-"], [data-testid] {
     font-family: 'Roboto', Noto, sans-serif !important;
 }
-h1 { font-size: 20px !important; font-weight: 700 !important; color: #141414; }
-h2 { font-size: 16px !important; font-weight: 700 !important; color: #141414; }
-h3 { font-size: 14px !important; font-weight: 500 !important; color: #141414; }
+h1 { font-size: 20px !important; font-weight: 700 !important; }
+h2 { font-size: 16px !important; font-weight: 700 !important; }
+h3 { font-size: 14px !important; font-weight: 500 !important; }
 p, li { font-size: 14px; }
-small, [data-testid="stCaptionContainer"] { font-size: 12px; color: #5e5e5e; }
+small, [data-testid="stCaptionContainer"] { font-size: 12px; }
 
 div[data-testid="stExpander"] {
-    background: white !important;
     border-radius: 12px !important;
-    border: 1px solid #e0e0e0 !important;
 }
-
-section[data-testid="stSidebar"] {
-    background-color: #1c1c1c !important;
-}
-section[data-testid="stSidebar"] label,
-section[data-testid="stSidebar"] p,
-section[data-testid="stSidebar"] span {
-    color: #e6e6e6 !important;
-}
-
-hr { border-color: #e0e0e0; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -51,7 +38,8 @@ hr { border-color: #e0e0e0; }
 def _sidebar_sensor_ids():
     try:
         return get_bayesian_entity_ids("binary_sensor.*", CONFIG_DIR)
-    except Exception:
+    except Exception as e:
+        st.sidebar.error(f"Failed to load sensors: {e}")
         return []
 
 
