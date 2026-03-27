@@ -25,6 +25,14 @@ from bayesian_studio.engine.state_db import load_state_timelines
 CONFIG_DIR = os.environ.get("HASS_CONFIG", "/config")
 
 # ---------------------------------------------------------------------------
+# HA history-graph colors (from frontend source: timeline-color.ts)
+# ---------------------------------------------------------------------------
+
+_ACTIVE_COLOR = "#FDD835"    # amber/yellow — HA binary_sensor on
+_INACTIVE_COLOR = "#e0e0e0"  # grey — HA binary_sensor off
+_UNKNOWN_COLOR = "#f5f5f5"   # very light grey — unavailable/unknown
+
+# ---------------------------------------------------------------------------
 # Shared Plotly layout — HA design tokens
 # ---------------------------------------------------------------------------
 
@@ -160,53 +168,61 @@ def _build_binary_chart(
     end_dt: datetime,
     height: int = 40,
 ) -> go.Figure:
-    """Build a compact activation timeline bar from obs_results (True/False/None)."""
+    """Build an HA history-graph style activation timeline from obs_results."""
     fig = go.Figure()
     if not results_col or not dt_vals:
         return fig
 
-    # Group into segments of equal value
-    prev_dt = dt_vals[0]
-    prev_val = results_col[0]
+    # Build segments of consecutive equal values
+    segments = []
+    seg_start = dt_vals[0]
+    seg_val = results_col[0]
     for j in range(1, len(results_col)):
-        if results_col[j] != prev_val:
-            color = (
-                "rgba(0,154,199,0.5)" if prev_val is True
-                else "rgba(200,200,200,0.3)" if prev_val is False
-                else "rgba(255,255,255,0)"
-            )
-            if color != "rgba(255,255,255,0)":
-                fig.add_vrect(x0=prev_dt, x1=dt_vals[j], fillcolor=color, line_width=0)
-            prev_dt = dt_vals[j]
-            prev_val = results_col[j]
-    color = (
-        "rgba(0,154,199,0.5)" if prev_val is True
-        else "rgba(200,200,200,0.3)" if prev_val is False
-        else "rgba(255,255,255,0)"
-    )
-    if color != "rgba(255,255,255,0)":
-        fig.add_vrect(x0=prev_dt, x1=end_dt, fillcolor=color, line_width=0)
+        if results_col[j] != seg_val:
+            segments.append((seg_start, dt_vals[j], seg_val))
+            seg_start = dt_vals[j]
+            seg_val = results_col[j]
+    segments.append((seg_start, end_dt, seg_val))
 
-    # Invisible scatter to set x-axis range
+    total_span = (end_dt - dt_vals[0]).total_seconds()
+
+    for x0, x1, val in segments:
+        color = (
+            _ACTIVE_COLOR if val is True
+            else _INACTIVE_COLOR if val is False
+            else _UNKNOWN_COLOR
+        )
+        fig.add_shape(
+            type="rect", x0=x0, x1=x1, y0=0, y1=1,
+            fillcolor=color, line_width=0, layer="below",
+        )
+        # Add state label if segment is wide enough (> 8% of total range)
+        seg_span = (x1 - x0).total_seconds()
+        if val is not None and total_span > 0 and seg_span / total_span > 0.08:
+            label = "active" if val is True else "inactive"
+            mid_x = x0 + (x1 - x0) / 2
+            fig.add_annotation(
+                x=mid_x, y=0.5, text=label, showarrow=False,
+                font=dict(size=10, color="#000000"),
+                xanchor="center", yanchor="middle",
+            )
+
+    # Invisible scatter to anchor x-axis range
     fig.add_trace(go.Scatter(
-        x=[dt_vals[0], end_dt], y=[0, 0],
+        x=[dt_vals[0], end_dt], y=[0.5, 0.5],
         mode="lines", line=dict(width=0),
         showlegend=False, hoverinfo="skip",
     ))
     fig.update_layout(
-        **_HA_CHART,
         height=height,
-        margin=dict(l=0, r=0, t=0, b=0),
+        margin=dict(l=0, r=0, t=2, b=2),
         xaxis=dict(
-            showticklabels=False,
-            showgrid=False,
-            zeroline=False,
+            showticklabels=False, showgrid=False, zeroline=False,
+            range=[dt_vals[0], end_dt],
         ),
         yaxis=dict(
-            showticklabels=False,
-            showgrid=False,
-            zeroline=False,
-            range=[-0.5, 0.5],
+            showticklabels=False, showgrid=False, zeroline=False,
+            range=[0, 1], fixedrange=True,
         ),
         paper_bgcolor="white",
         plot_bgcolor="white",
