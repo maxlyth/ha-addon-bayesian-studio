@@ -7,6 +7,6 @@ COPY requirements.txt /tmp/requirements.txt
 RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
 
 COPY rootfs /
-COPY ../bayesian_studio /app/bayesian_studio/
+COPY bayesian_studio /app/bayesian_studio/
 
 WORKDIR /app

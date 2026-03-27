@@ -18,11 +18,12 @@ test = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["."]
+where = ["bayesian-studio"]
 include = ["bayesian_studio*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["bayesian-studio"]
 markers = [
     "integration: requires a live Home Assistant instance",
 ]
