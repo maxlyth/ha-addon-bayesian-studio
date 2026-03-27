@@ -167,7 +167,18 @@ if st.button("Reset to original"):
     }
     st.rerun()
 
-# --- Load timelines ---
+# --- Chart placeholder (renders immediately; replaced once trace is ready) ---
+_CHART_HEIGHT = 420
+chart_slot = st.empty()
+stats_slot = st.empty()
+with chart_slot.container():
+    st.markdown(
+        f'<div style="height:{_CHART_HEIGHT}px;display:flex;align-items:center;'
+        f'justify-content:center;color:#888;">⏳ Computing probability trace…</div>',
+        unsafe_allow_html=True,
+    )
+
+# --- Load timelines (cached) ---
 obs_entity_ids = [
     obs["entity_id"]
     for obs in working["observations"]
@@ -179,55 +190,53 @@ load_attrs = any(
     "state_attr(" in obs.get("value_template", "")
     for obs in working["observations"]
 )
-
-timelines = _get_timelines(
-    tuple(sorted(all_entity_ids)), start_ts, end_ts, load_attrs
-)
+timelines = _get_timelines(tuple(sorted(all_entity_ids)), start_ts, end_ts, load_attrs)
 
 # --- Compute trace ---
 lat, lon = _get_location()
-with st.spinner("Computing probability trace…"):
-    trace = compute_probability_trace(
-        working["observations"],
-        working["prior"],
-        working["threshold"],
-        timelines,
-        start_ts,
-        end_ts,
-        lat,
-        lon,
-    )
+trace = compute_probability_trace(
+    working["observations"],
+    working["prior"],
+    working["threshold"],
+    timelines,
+    start_ts,
+    end_ts,
+    lat,
+    lon,
+)
 
 rows = trace["rows"]
 if not rows:
-    st.warning("No events found in this time window.")
+    chart_slot.warning("No events found in this time window.")
     st.stop()
 
 ts_vals = [r["ts"] for r in rows]
 prob_vals = [r["probability"] for r in rows]
 state_vals = [r["state"] for r in rows]
 dt_vals = [datetime.fromtimestamp(ts, tz=timezone.utc) for ts in ts_vals]
+end_dt = datetime.fromtimestamp(end_ts, tz=timezone.utc)
 
-# --- Chart ---
+# --- Build chart ---
 fig = go.Figure()
 
-# ON/OFF shading
+# ON/OFF shading — step from each event to the next; last segment extends to end_ts
 prev_dt = dt_vals[0]
 prev_state = state_vals[0]
 for i in range(1, len(rows)):
-    curr_dt = dt_vals[i]
-    if state_vals[i] != prev_state or i == len(rows) - 1:
-        color = "rgba(0, 200, 100, 0.08)" if prev_state == "on" else "rgba(200, 80, 80, 0.06)"
-        fig.add_vrect(x0=prev_dt, x1=curr_dt, fillcolor=color, line_width=0)
-        prev_dt = curr_dt
+    if state_vals[i] != prev_state:
+        color = "rgba(0,200,100,0.08)" if prev_state == "on" else "rgba(200,80,80,0.06)"
+        fig.add_vrect(x0=prev_dt, x1=dt_vals[i], fillcolor=color, line_width=0)
+        prev_dt = dt_vals[i]
         prev_state = state_vals[i]
+color = "rgba(0,200,100,0.08)" if prev_state == "on" else "rgba(200,80,80,0.06)"
+fig.add_vrect(x0=prev_dt, x1=end_dt, fillcolor=color, line_width=0)
 
-# Probability trace
+# Probability trace — step/square-wave (hv: horizontal first, then vertical)
 fig.add_trace(go.Scatter(
     x=dt_vals, y=prob_vals,
     mode="lines",
     name="Probability",
-    line=dict(color="#1f77b4", width=2),
+    line=dict(color="#1f77b4", width=2, shape="hv"),
 ))
 
 # Threshold line
@@ -239,17 +248,24 @@ fig.add_hline(
     annotation_position="top right",
 )
 
+# Y-axis: fit to data + threshold, with padding, clamped to [0, 1]
+y_all = prob_vals + [working["threshold"]]
+y_lo = max(0.0, min(y_all) - 0.05)
+y_hi = min(1.0, max(y_all) + 0.05)
+
 fig.update_layout(
-    title=f"{selected}",
+    title=selected,
     xaxis_title="Time",
     yaxis_title="Probability",
-    yaxis=dict(range=[0, 1]),
-    height=420,
+    yaxis=dict(range=[y_lo, y_hi]),
+    height=_CHART_HEIGHT,
     margin=dict(l=40, r=20, t=50, b=40),
     legend=dict(orientation="h", yanchor="bottom", y=1.02),
 )
 
-st.plotly_chart(fig, width="stretch")
+# Replace placeholder with chart
+with chart_slot.container():
+    st.plotly_chart(fig, width="stretch")
 
 # --- Warnings ---
 if trace["warnings"]:
@@ -257,8 +273,8 @@ if trace["warnings"]:
         for w in trace["warnings"]:
             st.warning(f"**{w['type']}** (obs {w.get('observation_index', '?')}): {w['detail']}")
 
-# --- Stats ---
-st.caption(
+# --- Stats (replace placeholder) ---
+stats_slot.caption(
     f"Computed {len(rows)} events in {trace['computation_seconds']:.3f}s · "
     f"Source: `{source.kind}` "
     + (f"· `{os.path.relpath(source.file_path, CONFIG_DIR)}`" if source.file_path else "")
