@@ -1,0 +1,29 @@
+name: "Bayesian Studio"
+version: "0.1.0"
+slug: "bayesian_studio"
+description: "Visual interactive tuning UI for Bayesian binary sensors"
+url: "https://github.com/maxlyth/ha-addon-bayesian-studio"
+arch:
+  - aarch64
+  - amd64
+  - armv7
+startup: application
+boot: auto
+ingress: true
+ingress_port: 8501
+ingress_entry: "/"
+panel_icon: "mdi:chart-bell-curve-cumulative"
+panel_title: "Bayesian Studio"
+homeassistant_api: true
+map:
+  - config:rw
+  - addon_config:rw
+options: {}
+schema: {}
+environment:
+  STREAMLIT_SERVER_PORT: "8501"
+  STREAMLIT_SERVER_ADDRESS: "0.0.0.0"
+  STREAMLIT_SERVER_HEADLESS: "true"
+  STREAMLIT_SERVER_ENABLE_CORS: "false"
+  STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION: "false"
+  STREAMLIT_BROWSER_GATHER_USAGE_STATS: "false"
