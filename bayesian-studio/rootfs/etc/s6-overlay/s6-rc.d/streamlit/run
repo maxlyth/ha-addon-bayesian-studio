@@ -2,13 +2,10 @@
 # shellcheck shell=bash
 set -e
 
-INGRESS_PATH="$(bashio::addon.ingress_entry)"
-
 exec streamlit run /app/bayesian_studio/app.py \
     --server.port=8501 \
     --server.address=0.0.0.0 \
     --server.headless=true \
     --server.enableCORS=false \
     --server.enableXsrfProtection=false \
-    --browser.gatherUsageStats=false \
-    --server.baseUrlPath="${INGRESS_PATH}"
+    --browser.gatherUsageStats=false
