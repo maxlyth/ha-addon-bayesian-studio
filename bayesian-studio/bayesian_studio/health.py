@@ -9,10 +9,11 @@ def observation_coverage(
     entity_id = obs.get("entity_id")
     if not entity_id:
         return 0.0
-    states = timelines.get(entity_id)
-    if not states:
+    tl = timelines.get(entity_id, {})
+    ts_list = tl.get("ts", []) if isinstance(tl, dict) else []
+    if not ts_list:
         return 0.0
-    first_ts = states[0][0]
+    first_ts = ts_list[0]
     if first_ts >= end_ts:
         return 0.0
     window = end_ts - start_ts
@@ -35,16 +36,20 @@ def observation_activity(results_series: list) -> str | None:
 
 
 def fire_frequency_from_timeline(
-    timeline: list[tuple], start_ts: float, end_ts: float
+    timeline: dict, start_ts: float, end_ts: float
 ) -> float:
     """Return time-weighted fraction of the window where state is 'on'."""
     if not timeline or end_ts <= start_ts:
         return 0.0
+    ts_list = timeline.get("ts", []) if isinstance(timeline, dict) else []
+    state_list = timeline.get("state", []) if isinstance(timeline, dict) else []
+    if not ts_list:
+        return 0.0
     on_time = 0.0
     window = end_ts - start_ts
-    for i, (ts, state) in enumerate(timeline):
+    for i, ts in enumerate(ts_list):
         seg_start = max(ts, start_ts)
-        seg_end = min(timeline[i + 1][0] if i + 1 < len(timeline) else end_ts, end_ts)
-        if seg_end > seg_start and state == "on":
+        seg_end = min(ts_list[i + 1] if i + 1 < len(ts_list) else end_ts, end_ts)
+        if seg_end > seg_start and state_list[i] == "on":
             on_time += seg_end - seg_start
     return on_time / window

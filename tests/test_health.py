@@ -21,32 +21,33 @@ def test_coverage_no_entity_id():
 
 def test_coverage_entity_missing_from_timelines():
     obs = {"platform": "state", "entity_id": "sensor.a"}
-    assert observation_coverage(obs, {"sensor.b": [(0.0, "on")]}, 0.0, 100.0) == 0.0
+    tl = {"sensor.b": {"ts": [0.0], "state": ["on"], "attrs": [None]}}
+    assert observation_coverage(obs, tl, 0.0, 100.0) == 0.0
 
 
 def test_coverage_empty_timeline():
     obs = {"platform": "state", "entity_id": "sensor.a"}
-    assert observation_coverage(obs, {"sensor.a": []}, 0.0, 100.0) == 0.0
+    assert observation_coverage(obs, {"sensor.a": {"ts": [], "state": [], "attrs": []}}, 0.0, 100.0) == 0.0
 
 
 def test_coverage_full_when_state_before_window():
     """State recorded before the window means the whole window is covered."""
     obs = {"platform": "state", "entity_id": "sensor.a"}
-    timelines = {"sensor.a": [(-10.0, "on"), (50.0, "off")]}
+    timelines = {"sensor.a": {"ts": [-10.0, 50.0], "state": ["on", "off"], "attrs": [None, None]}}
     assert observation_coverage(obs, timelines, 0.0, 100.0) == pytest.approx(1.0)
 
 
 def test_coverage_partial_starts_mid_window():
     """First state at t=40 in a [0,100] window → 60% coverage."""
     obs = {"platform": "state", "entity_id": "sensor.a"}
-    timelines = {"sensor.a": [(40.0, "on")]}
+    timelines = {"sensor.a": {"ts": [40.0], "state": ["on"], "attrs": [None]}}
     assert observation_coverage(obs, timelines, 0.0, 100.0) == pytest.approx(0.6)
 
 
 def test_coverage_state_after_window():
     """State only recorded after the window ends → 0%."""
     obs = {"platform": "state", "entity_id": "sensor.a"}
-    timelines = {"sensor.a": [(150.0, "on")]}
+    timelines = {"sensor.a": {"ts": [150.0], "state": ["on"], "attrs": [None]}}
     assert observation_coverage(obs, timelines, 0.0, 100.0) == 0.0
 
 
@@ -86,32 +87,35 @@ def test_activity_empty():
 # ---------------------------------------------------------------------------
 
 
+def _tl(*pairs):
+    """Build a timeline dict from (ts, state) pairs."""
+    ts_list = [p[0] for p in pairs]
+    state_list = [p[1] for p in pairs]
+    return {"ts": ts_list, "state": state_list, "attrs": [None] * len(ts_list)}
+
+
 def test_fire_frequency_empty():
-    assert fire_frequency_from_timeline([], 0.0, 100.0) == 0.0
+    assert fire_frequency_from_timeline({}, 0.0, 100.0) == 0.0
 
 
 def test_fire_frequency_always_off():
-    tl = [(0.0, "off"), (50.0, "off")]
-    assert fire_frequency_from_timeline(tl, 0.0, 100.0) == pytest.approx(0.0)
+    assert fire_frequency_from_timeline(_tl((0.0, "off"), (50.0, "off")), 0.0, 100.0) == pytest.approx(0.0)
 
 
 def test_fire_frequency_always_on():
-    tl = [(0.0, "on")]
-    assert fire_frequency_from_timeline(tl, 0.0, 100.0) == pytest.approx(1.0)
+    assert fire_frequency_from_timeline(_tl((0.0, "on")), 0.0, 100.0) == pytest.approx(1.0)
 
 
 def test_fire_frequency_half():
-    tl = [(0.0, "on"), (50.0, "off")]
-    assert fire_frequency_from_timeline(tl, 0.0, 100.0) == pytest.approx(0.5)
+    assert fire_frequency_from_timeline(_tl((0.0, "on"), (50.0, "off")), 0.0, 100.0) == pytest.approx(0.5)
 
 
 def test_fire_frequency_clamps_to_window():
     """State that starts before the window is clipped to window start."""
-    tl = [(-50.0, "on"), (50.0, "off")]
-    assert fire_frequency_from_timeline(tl, 0.0, 100.0) == pytest.approx(0.5)
+    assert fire_frequency_from_timeline(_tl((-50.0, "on"), (50.0, "off")), 0.0, 100.0) == pytest.approx(0.5)
 
 
 def test_fire_frequency_multiple_segments():
-    tl = [(0.0, "on"), (25.0, "off"), (75.0, "on")]
+    tl = _tl((0.0, "on"), (25.0, "off"), (75.0, "on"))
     # on: 0→25 (25s) + 75→100 (25s) = 50s / 100s = 0.5
     assert fire_frequency_from_timeline(tl, 0.0, 100.0) == pytest.approx(0.5)

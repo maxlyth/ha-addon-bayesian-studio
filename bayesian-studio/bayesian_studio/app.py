@@ -14,6 +14,38 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+html, body, [class*="st-"], [data-testid] {
+    font-family: 'Roboto', Noto, sans-serif !important;
+}
+h1 { font-size: 20px !important; font-weight: 700 !important; color: #141414; }
+h2 { font-size: 16px !important; font-weight: 700 !important; color: #141414; }
+h3 { font-size: 14px !important; font-weight: 500 !important; color: #141414; }
+p, li { font-size: 14px; }
+small, [data-testid="stCaptionContainer"] { font-size: 12px; color: #5e5e5e; }
+
+div[data-testid="stExpander"] {
+    background: white !important;
+    border-radius: 12px !important;
+    border: 1px solid #e0e0e0 !important;
+}
+
+section[data-testid="stSidebar"] {
+    background-color: #1c1c1c !important;
+}
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span {
+    color: #e6e6e6 !important;
+}
+
+hr { border-color: #e0e0e0; }
+</style>
+""", unsafe_allow_html=True)
+
 
 @st.cache_data(ttl=120, show_spinner=False)
 def _sidebar_sensor_ids():
@@ -42,18 +74,19 @@ with st.sidebar:
     if not sensor_ids:
         st.caption("No sensors found")
     else:
-        for sid in sensor_ids:
-            label = sid.split(".")[-1] if "." in sid else sid
-            if st.button(
-                label,
-                key=f"sb_{sid}",
-                help=sid,
-                use_container_width=True,
-                type="primary" if sid == current else "secondary",
-            ):
-                st.session_state["_nav_sensor"] = sid
-                st.session_state["_current_sensor"] = sid
-                st.switch_page(studio_page)
+        labels = [sid.split(".")[-1] if "." in sid else sid for sid in sensor_ids]
+        current_idx = sensor_ids.index(current) if current in sensor_ids else 0
+        chosen_label = st.radio(
+            "sensor",
+            options=labels,
+            index=current_idx,
+            label_visibility="collapsed",
+        )
+        chosen_sid = sensor_ids[labels.index(chosen_label)]
+        if chosen_sid != current:
+            st.session_state["_nav_sensor"] = chosen_sid
+            st.session_state["_current_sensor"] = chosen_sid
+            st.switch_page(studio_page)
 
 # ---------------------------------------------------------------------------
 # Navigation — page list hidden; sidebar above is the sole navigation
