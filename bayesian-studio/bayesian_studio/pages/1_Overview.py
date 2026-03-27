@@ -12,8 +12,6 @@ from bayesian_studio.health import (
     observation_coverage,
 )
 
-st.set_page_config(page_title="Bayesian Studio — Overview", layout="wide")
-
 CONFIG_DIR = os.environ.get("HASS_CONFIG", "/config")
 
 WINDOW_DAYS = 7

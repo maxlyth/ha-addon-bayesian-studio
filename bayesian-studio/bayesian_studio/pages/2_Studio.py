@@ -18,8 +18,6 @@ from bayesian_studio.engine.config_loader import (
 from bayesian_studio.engine.database import get_engine, get_read_connection
 from bayesian_studio.engine.state_db import load_state_timelines
 
-st.set_page_config(page_title="Bayesian Studio", layout="wide")
-
 # ---------------------------------------------------------------------------
 # Config dir — add-on mounts /config; fall back to HASS_CONFIG for local dev
 # ---------------------------------------------------------------------------
@@ -76,6 +74,7 @@ if preselect and preselect in sensor_ids:
 
 selected = st.selectbox("Sensor", sensor_ids, index=default_idx)
 st.query_params["sensor"] = selected
+st.session_state["_current_sensor"] = selected
 
 # --- Date range picker ---
 col_start, col_end = st.columns(2)

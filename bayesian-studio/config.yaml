@@ -1,5 +1,5 @@
 name: "Bayesian Studio"
-version: "0.1.6"
+version: "0.1.7"
 slug: "bayesian_studio"
 description: "Visual interactive tuning UI for Bayesian binary sensors"
 url: "https://github.com/maxlyth/ha-addon-bayesian-studio"
