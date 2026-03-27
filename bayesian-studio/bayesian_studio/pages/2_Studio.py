@@ -69,10 +69,10 @@ if not sensor_ids:
     st.stop()
 
 default_idx = 0
-if "sensor" in st.query_params:
-    qs = st.query_params["sensor"]
-    if qs in sensor_ids:
-        default_idx = sensor_ids.index(qs)
+nav_sensor = st.session_state.pop("_nav_sensor", None)
+preselect = nav_sensor or st.query_params.get("sensor")
+if preselect and preselect in sensor_ids:
+    default_idx = sensor_ids.index(preselect)
 
 selected = st.selectbox("Sensor", sensor_ids, index=default_idx)
 st.query_params["sensor"] = selected
@@ -249,7 +249,7 @@ fig.update_layout(
     legend=dict(orientation="h", yanchor="bottom", y=1.02),
 )
 
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 # --- Warnings ---
 if trace["warnings"]:
