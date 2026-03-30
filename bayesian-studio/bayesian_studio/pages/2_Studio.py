@@ -253,11 +253,14 @@ def _build_binary_chart(
     dt_vals: list,
     end_dt: datetime,
     height: int = _BINARY_CHART_H,
+    start_dt: datetime | None = None,
 ) -> go.Figure:
     """Build an HA history-graph style activation timeline from obs_results."""
     fig = go.Figure()
     if not results_col or not dt_vals:
         return fig
+
+    range_start = start_dt or dt_vals[0]
 
     segments = []
     seg_start = dt_vals[0]
@@ -269,7 +272,7 @@ def _build_binary_chart(
             seg_val = results_col[j]
     segments.append((seg_start, end_dt, seg_val))
 
-    total_span = (end_dt - dt_vals[0]).total_seconds()
+    total_span = (end_dt - range_start).total_seconds()
 
     for x0, x1, val in segments:
         color = (
@@ -292,16 +295,17 @@ def _build_binary_chart(
             )
 
     fig.add_trace(go.Scatter(
-        x=[dt_vals[0], end_dt], y=[0.5, 0.5],
+        x=[range_start, end_dt], y=[0.5, 0.5],
         mode="lines", line=dict(width=0),
-        showlegend=False, hoverinfo="skip",
+        showlegend=False,
+        hovertemplate="%{x|%b %d %H:%M}<extra></extra>",
     ))
     fig.update_layout(
         height=height,
         margin=dict(l=0, r=0, t=2, b=2),
         xaxis=dict(
             showticklabels=False, showgrid=False, zeroline=False,
-            range=[dt_vals[0], end_dt],
+            range=[range_start, end_dt],
         ),
         yaxis=dict(
             showticklabels=False, showgrid=False, zeroline=False,
@@ -309,6 +313,7 @@ def _build_binary_chart(
         ),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
+        hovermode="x",
     )
     return fig
 
@@ -383,8 +388,11 @@ def _build_numeric_chart(
         y_lo = min(y_all) - abs(min(y_all)) * 0.05 - 0.1
         y_hi = max(y_all) + abs(max(y_all)) * 0.05 + 0.1
 
+        start_dt = datetime.fromtimestamp(start_ts, tz=timezone.utc)
+        end_dt = datetime.fromtimestamp(end_ts, tz=timezone.utc)
         chart_layout = dict(_HA_CHART)
-        chart_layout["xaxis"] = dict(_HA_CHART["xaxis"], tickformat="%b %d\n%H:%M", dtick=43200000)
+        chart_layout["xaxis"] = dict(_HA_CHART["xaxis"], tickformat="%b %d\n%H:%M", dtick=43200000,
+                                     range=[start_dt, end_dt])
         chart_layout["yaxis"] = dict(_HA_CHART["yaxis"], range=[y_lo, y_hi])
         chart_layout["margin"] = dict(l=40, r=40, t=4, b=0)
         fig.update_layout(**chart_layout, height=_NUMERIC_CHART_H)
@@ -408,7 +416,11 @@ def _build_entity_preview_chart(
             return go.Figure()
         dt_p = [datetime.fromtimestamp(ts, tz=timezone.utc) for ts, _ in pts]
         res_p = [s in _ACTIVE_BINARY_STATES for _, s in pts]
-        return _build_binary_chart(res_p, dt_p, datetime.fromtimestamp(end_ts, tz=timezone.utc))
+        return _build_binary_chart(
+            res_p, dt_p,
+            end_dt=datetime.fromtimestamp(end_ts, tz=timezone.utc),
+            start_dt=datetime.fromtimestamp(start_ts, tz=timezone.utc),
+        )
     else:
         return _build_numeric_chart(tl, {}, start_ts, end_ts)
 
@@ -425,6 +437,7 @@ def _fill_obs_charts(
 ) -> None:
     """Fill observation chart placeholders after trace is computed."""
     rows = trace["rows"]
+    range_start = datetime.fromtimestamp(start_ts, tz=timezone.utc)
     for i, platform, obs, slot in slots:
         entity_id = obs.get("entity_id", "")
 
@@ -443,7 +456,7 @@ def _fill_obs_charts(
             sub_entity_ids = extract_template_entity_ids_for_obs(obs)
             with slot.container():
                 if results_col:
-                    fig = _build_binary_chart(results_col, dt_vals, end_dt)
+                    fig = _build_binary_chart(results_col, dt_vals, end_dt, start_dt=range_start)
                     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False},
                                     key=f"obs_chart_tpl_{i}")
                 else:
@@ -455,7 +468,7 @@ def _fill_obs_charts(
                     if _is_binary_entity(eid, timelines):
                         sub_results = _entity_binary_results(eid, timelines, dt_vals)
                         if sub_results:
-                            fig = _build_binary_chart(sub_results, dt_vals, end_dt)
+                            fig = _build_binary_chart(sub_results, dt_vals, end_dt, start_dt=range_start)
                             st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False},
                                             key=f"obs_chart_tpl_sub_{i}_{eid}")
                     else:
@@ -467,7 +480,7 @@ def _fill_obs_charts(
         else:
             results_col = [r["obs_results"][i] for r in rows if i < len(r["obs_results"])]
             if results_col:
-                fig = _build_binary_chart(results_col, dt_vals, end_dt)
+                fig = _build_binary_chart(results_col, dt_vals, end_dt, start_dt=range_start)
                 with slot.container():
                     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False},
                                     key=f"obs_chart_bin_{i}_{entity_id}")
@@ -894,7 +907,9 @@ y_all = prob_vals + [working["threshold"]]
 y_lo = max(0.0, min(y_all) - 0.05)
 y_hi = min(1.0, max(y_all) + 0.05)
 
+start_dt = datetime.fromtimestamp(start_ts, tz=timezone.utc)
 chart_layout = dict(_HA_CHART)
+chart_layout["xaxis"] = dict(_HA_CHART["xaxis"], range=[start_dt, end_dt])
 chart_layout["yaxis"] = dict(_HA_CHART["yaxis"], range=[y_lo, y_hi])
 fig.update_layout(
     **chart_layout,
