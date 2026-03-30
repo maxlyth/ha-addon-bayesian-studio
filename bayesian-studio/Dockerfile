@@ -8,8 +8,9 @@ RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
 
 COPY rootfs /
 
-# Cache-bust: bump this when Python source changes must be force-recopied
-ARG CACHEBUST=0.3.1
+# Bump VERSION on every release — busts the layer cache for the COPY below and sets the runtime version
+ARG VERSION=0.4.4
+ENV VERSION=${VERSION}
 COPY bayesian_studio /app/bayesian_studio/
 
 WORKDIR /app
