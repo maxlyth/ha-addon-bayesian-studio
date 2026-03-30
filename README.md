@@ -6,14 +6,22 @@
 
 Visual interactive tuning UI for Home Assistant Bayesian binary sensors. Runs as a local HA Supervisor add-on with ingress.
 
+## The problem
+Bayesian sensors should be incredibly useful in Home Assistant for non-deterministic outcomes based on multiple entities (Fuzzy logic) but in practice are rarely used for two reasons:
+1. A sensor requires foundations parameters that are then modulated by multiple observations. The values to set for teh parameters are not obvious and determining starting values general requires inspecting historical trends.
+2. Sensors calculate a probability based on observations and trigger at a threshold. It is only possible to calculate the current probability and record that going forward. Days must pass to collect new data by which time the goal has been forgotten.
+
+## The solution
+Bayesian studio allows the observations and parameters to be freely explored and restrospectively calculates and displays the probability timeline so a user can see how that correlates with what they expected.
+
 ## Features
 
 - **Overview page** — sensor health table with observation coverage, fire frequency, prior, threshold, and config source. Dynamic time window adapts to system performance (targets 8-second page load).
 - **Studio page** — per-sensor tuning with interactive probability chart, observation sliders, and save-to-YAML with auto-backfill.
-- **Observation friendly names** — editable names stored as inline YAML comments, shown in the UI for clarity.
-- **Full HA template support** — Jinja2 environment with `states()`, `state_attr()`, `is_state()`, `has_value()`, `now()`, `utcnow()`, `today_at()`, `as_timestamp()`, `as_local()`, `timedelta()`, `float()`, `int()`, `bool()`, `is_number()`, `iif()`, and dotted `states.domain.name` access.
+- **Simulated sensors** - The state of critical sensors such as time() or sun() are often not stored in the history DB so dependant observations cannot be recreated. Bayesian Studio uses TimeZone, Lat and Long settings from HA to simulate historical data.
+- **HA template support** — Bayesian Studio can eveluate Jinja2 templates and will also evaluate many HA extensions such as `states()`, `state_attr()`, `is_state()`, `has_value()`, `now()`, `utcnow()`, `today_at()`, `as_timestamp()`, `as_local()`, `timedelta()`, `float()`, `int()`, `bool()`, `is_number()`, `iif()`, and dotted `states.domain.name` access.
 - **Adaptive synthetic timestamps** — time-dependent template observations (sun elevation, `now()` comparisons) are re-evaluated at appropriate intervals: every 40s (last 24h), 5min (last 7d), 15min (older).
-- **Auto light/dark theme** — follows system preference via `prefers-color-scheme`.
+- **History backfill** - Bayesian Studio uses the [Bayesian Backfill](https://github.com/maxlyth/homeassistant-bayesian-backfill) project to not only simulate the recent sensor history for exploratory purposes but can also recalculate the entire state history for a modifed sensor.
 
 ## Installation
 
@@ -40,27 +48,6 @@ The add-on reads Bayesian sensor config from both:
 - **UI-created sensors** — reads from `.storage/core.config_entries`
 
 Sensor changes made in the Studio page are written back to the source YAML file with round-trip comment preservation.
-
-## Development
-
-### Running tests
-
-```sh
-python -m pytest tests/ -q -m "not integration"
-```
-
-### Version bump
-
-Three files must match (enforced by `test_version.py`):
-- `bayesian-studio/config.yaml` — `version:`
-- `bayesian-studio/Dockerfile` — `ARG VERSION=`
-- `pyproject.toml` — `version =`
-
-### Deploy locally
-
-```sh
-./deploy_local.sh
-```
 
 ## Stack
 
