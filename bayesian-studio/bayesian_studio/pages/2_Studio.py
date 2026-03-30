@@ -41,7 +41,7 @@ _INACTIVE_COLOR = "#e0e0e0"                # grey — HA binary_sensor off
 _UNKNOWN_COLOR = "rgba(128,128,128,0.15)"  # translucent grey — light + dark
 
 _BINARY_CHART_H = 40    # thin horizontal timeline
-_NUMERIC_CHART_H = 150  # taller step-line chart
+_NUMERIC_CHART_H = 300  # taller step-line chart
 _CHART_HEIGHT = 420     # main probability chart
 
 _SPINNER_HTML = (
