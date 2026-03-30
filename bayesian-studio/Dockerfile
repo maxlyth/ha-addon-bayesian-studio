@@ -9,8 +9,9 @@ RUN pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt
 COPY rootfs /
 
 # Bump VERSION on every release — busts the layer cache for the COPY below and sets the runtime version
-ARG VERSION=0.4.4
+ARG VERSION=0.4.10
 ENV VERSION=${VERSION}
 COPY bayesian_studio /app/bayesian_studio/
+COPY .streamlit /app/.streamlit/
 
 WORKDIR /app

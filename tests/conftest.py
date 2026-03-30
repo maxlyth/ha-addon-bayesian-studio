@@ -15,7 +15,7 @@ def _make_config_dir(tmp_path, recorder_section=""):
     storage.mkdir()
 
     (storage / "core.config").write_text(json.dumps({
-        "data": {"latitude": 51.5, "longitude": -0.1}
+        "data": {"latitude": 51.5, "longitude": -0.1, "time_zone": "UTC"}
     }))
 
     cfg = "homeassistant:\n  name: Test\n"

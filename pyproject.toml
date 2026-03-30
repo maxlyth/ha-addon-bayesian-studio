@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bayesian-studio"
-version = "0.4.4"
+version = "0.4.10"
 requires-python = ">=3.10"
 
 [project.optional-dependencies]

@@ -5,6 +5,7 @@ from typing import Any
 
 import requests
 from ruamel.yaml import YAML
+from ruamel.yaml.comments import CommentedMap
 
 
 def compute_change_summary(
@@ -34,7 +35,7 @@ def compute_change_summary(
             w_obs = working["observations"][i]
             o_obs = orig_obs[i]
             eid = w_obs.get("entity_id", f"obs[{i}]")
-            for key in ("prob_given_true", "prob_given_false", "to_state", "above", "below"):
+            for key in ("prob_given_true", "prob_given_false", "to_state", "above", "below", "value_template"):
                 old_val = o_obs.get(key)
                 new_val = w_obs.get(key)
                 if old_val != new_val:
@@ -51,6 +52,19 @@ def compute_change_summary(
             o_obs = orig_obs[i]
             eid = o_obs.get("entity_id", o_obs.get("value_template", f"obs[{i}]")[:40])
             changes.append({"field": f"observations[{i}] REMOVED", "old": eid, "new": None})
+
+    orig_names = working.get("_orig_obs_names") or []
+    curr_names = working.get("_obs_names") or []
+    for i, (old_name, new_name) in enumerate(zip(orig_names, curr_names)):
+        if old_name != new_name:
+            obs = working["observations"][i] if i < len(working["observations"]) else {}
+            eid = obs.get("entity_id", f"obs[{i}]")
+            changes.append({
+                "field": f"observations[{i}] name ({eid})",
+                "old": old_name or None,
+                "new": new_name or None,
+            })
+
     return changes
 
 
@@ -67,7 +81,7 @@ def save_yaml_config(file_path: str, unique_id: str, working: dict) -> None:
     with open(file_path) as f:
         data = yaml.load(f)
 
-    sensor = _find_sensor(data, unique_id)
+    sensor = find_sensor(data, unique_id)
     if sensor is None:
         raise ValueError(
             f"Bayesian sensor with unique_id={unique_id!r} not found in {file_path}"
@@ -90,17 +104,40 @@ def save_yaml_config(file_path: str, unique_id: str, working: dict) -> None:
             for key in ("prob_given_true", "prob_given_false"):
                 if key in y_obs or key in w_obs:
                     y_obs[key] = round(float(w_obs[key]), 6)
-            for key in ("to_state", "above", "below"):
+            for key in ("to_state", "above", "below", "value_template"):
                 if key in w_obs:
                     y_obs[key] = w_obs[key]
         else:
-            yaml_obs_seq.append(dict(w_obs))
+            yaml_obs_seq.append(CommentedMap(w_obs))
+
+    names = working.get("_obs_names")
+    if names is not None:
+        _apply_obs_names(yaml_obs_seq, names)
 
     with open(file_path, "w") as f:
         yaml.dump(data, f)
 
 
-def _find_sensor(data: Any, unique_id: str) -> Any:
+def _apply_obs_names(yaml_obs_seq: Any, names: list[str]) -> None:
+    """Write observation friendly names as inline comments on the platform key."""
+    from ruamel.yaml.tokens import CommentToken
+    from ruamel.yaml.error import CommentMark
+
+    for y_obs, name in zip(yaml_obs_seq, names):
+        if name:
+            ct = CommentToken(f"# {name}\n", CommentMark(0), None)
+            if "platform" in y_obs.ca.items:
+                y_obs.ca.items["platform"][2] = ct
+            else:
+                y_obs.ca.items["platform"] = [None, None, ct, None]
+        else:
+            if "platform" in y_obs.ca.items:
+                items = y_obs.ca.items["platform"]
+                if len(items) > 2:
+                    items[2] = None
+
+
+def find_sensor(data: Any, unique_id: str) -> Any:
     """Return the CommentedMap for the sensor matching unique_id, or None."""
     candidates: list = []
     if isinstance(data, list):

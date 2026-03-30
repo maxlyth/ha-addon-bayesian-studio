@@ -1,5 +1,5 @@
 name: "Bayesian Studio"
-version: "0.4.4"
+version: "0.4.10"
 slug: "bayesian_studio"
 description: "Visual interactive tuning UI for Bayesian binary sensors"
 url: "https://github.com/maxlyth/ha-addon-bayesian-studio"
@@ -27,4 +27,4 @@ environment:
   STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION: "false"
   STREAMLIT_BROWSER_GATHER_USAGE_STATS: "false"
   STREAMLIT_SERVER_RUN_ON_SAVE: "true"
-  STREAMLIT_THEME_PRIMARY_COLOR: "#009ac7"
+  STREAMLIT_CLIENT_TOOLBAR_MODE: "minimal"

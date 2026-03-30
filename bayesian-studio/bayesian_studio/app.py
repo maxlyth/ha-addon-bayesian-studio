@@ -23,7 +23,7 @@ st.markdown("""
 html, body, [class*="st-"], [data-testid] {
     font-family: 'Roboto', Noto, sans-serif !important;
 }
-h2 { font-size: 16px !important; font-weight: 700 !important; }
+h2 { font-size: 24px !important; font-weight: 700 !important; }
 h3 { font-size: 14px !important; font-weight: 500 !important; }
 p, li { font-size: 14px; }
 small, [data-testid="stCaptionContainer"] { font-size: 12px; }
@@ -50,11 +50,7 @@ section[data-testid="stSidebar"] { display: none !important; }
     box-sizing: border-box;
 }
 
-/* Keep Streamlit header transparent so hamburger menu (☰ Settings/Theme) remains accessible */
-header[data-testid="stHeader"] {
-    background: transparent !important;
-    z-index: 1000 !important;
-}
+header[data-testid="stHeader"] { display: none !important; }
 
 /* Push Streamlit content below the top bar */
 [data-testid="stAppViewContainer"] > section > div:first-child { padding-top: 60px !important; }
@@ -67,8 +63,8 @@ header[data-testid="stHeader"] {
 # Navigation
 # ---------------------------------------------------------------------------
 
-overview_page = st.Page("pages/1_Overview.py", title="Overview", icon="📊")
-studio_page = st.Page("pages/2_Studio.py", title="Studio", icon="🎛️")
+overview_page = st.Page("pages/overview.py", title="Overview", icon="📊")
+studio_page = st.Page("pages/bayesian_details.py", title="Studio", icon="🎛️")
 
 pg = st.navigation([overview_page, studio_page], position="hidden")
 pg.run()

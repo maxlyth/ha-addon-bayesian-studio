@@ -7,7 +7,7 @@ import pytest
 import yaml as pyyaml
 
 from bayesian_studio.engine.config_writer import (
-    _find_sensor,
+    find_sensor,
     compute_change_summary,
     generate_yaml_snippet,
     reload_bayesian_integration,
@@ -236,25 +236,25 @@ def test_save_yaml_not_found_raises(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# _find_sensor
+# find_sensor
 # ---------------------------------------------------------------------------
 
-def test_find_sensor_list_format():
+def testfind_sensor_list_format():
     data = pyyaml.safe_load(_YAML_SINGLE)
-    sensor = _find_sensor(data, "test_sensor")
+    sensor = find_sensor(data, "test_sensor")
     assert sensor is not None
     assert sensor["name"] == "Test sensor"
 
 
-def test_find_sensor_dict_format():
+def testfind_sensor_dict_format():
     data = pyyaml.safe_load(_YAML_DICT_FORMAT)
-    sensor = _find_sensor(data, "test_sensor")
+    sensor = find_sensor(data, "test_sensor")
     assert sensor is not None
 
 
-def test_find_sensor_missing_returns_none():
+def testfind_sensor_missing_returns_none():
     data = pyyaml.safe_load(_YAML_SINGLE)
-    assert _find_sensor(data, "no_such_id") is None
+    assert find_sensor(data, "no_such_id") is None
 
 
 # ---------------------------------------------------------------------------
@@ -404,3 +404,93 @@ def test_save_yaml_add_then_remove_roundtrip(tmp_path):
     result = pyyaml.safe_load(f.read_text())[0]["observations"]
     assert len(result) == 2
     assert result[0]["entity_id"] == "binary_sensor.motion"
+
+
+# ---------------------------------------------------------------------------
+# Observation name write-back
+# ---------------------------------------------------------------------------
+
+def test_save_writes_obs_name_comment(tmp_path):
+    """A non-empty name is written as an inline comment on the platform key."""
+    f = tmp_path / "bayesian.yaml"
+    f.write_text(_YAML_SINGLE)
+    import copy
+    working = {"prior": 0.5, "threshold": 0.5,
+               "observations": copy.deepcopy(_OBS_ORIG),
+               "_obs_names": ["Motion sensor", ""]}
+    save_yaml_config(str(f), "test_sensor", working)
+    raw = f.read_text()
+    assert "# Motion sensor" in raw
+
+
+def test_save_updates_existing_name(tmp_path):
+    """Changing a name updates the inline comment."""
+    f = tmp_path / "bayesian.yaml"
+    # Pre-write with initial name
+    f.write_text(_YAML_SINGLE)
+    import copy
+    save_yaml_config(str(f), "test_sensor", {
+        "prior": 0.5, "threshold": 0.5,
+        "observations": copy.deepcopy(_OBS_ORIG),
+        "_obs_names": ["Old name", ""],
+    })
+    save_yaml_config(str(f), "test_sensor", {
+        "prior": 0.5, "threshold": 0.5,
+        "observations": copy.deepcopy(_OBS_ORIG),
+        "_obs_names": ["New name", ""],
+    })
+    raw = f.read_text()
+    assert "# New name" in raw
+    assert "# Old name" not in raw
+
+
+def test_save_removes_name_when_empty(tmp_path):
+    """Setting a name to empty string clears the inline comment."""
+    f = tmp_path / "bayesian.yaml"
+    f.write_text(_YAML_SINGLE)
+    import copy
+    save_yaml_config(str(f), "test_sensor", {
+        "prior": 0.5, "threshold": 0.5,
+        "observations": copy.deepcopy(_OBS_ORIG),
+        "_obs_names": ["Initial name", ""],
+    })
+    save_yaml_config(str(f), "test_sensor", {
+        "prior": 0.5, "threshold": 0.5,
+        "observations": copy.deepcopy(_OBS_ORIG),
+        "_obs_names": ["", ""],
+    })
+    raw = f.read_text()
+    assert "# Initial name" not in raw
+
+
+def test_save_names_none_is_noop(tmp_path):
+    """When _obs_names is None, no comments are written or removed."""
+    f = tmp_path / "bayesian.yaml"
+    f.write_text(_YAML_SINGLE)
+    import copy
+    working = {"prior": 0.5, "threshold": 0.5,
+               "observations": copy.deepcopy(_OBS_ORIG),
+               "_obs_names": None}
+    save_yaml_config(str(f), "test_sensor", working)
+    raw = f.read_text()
+    # No stray inline comments should appear on platform lines
+    for line in raw.splitlines():
+        if "platform: state" in line or "platform: numeric_state" in line:
+            assert "#" not in line
+
+
+def test_change_summary_includes_name_changes():
+    """compute_change_summary reports name changes alongside value changes."""
+    import copy
+    working = {
+        "prior": 0.5,
+        "threshold": 0.5,
+        "observations": copy.deepcopy(_OBS_ORIG),
+        "_obs_names": ["New name", ""],
+        "_orig_obs_names": ["", ""],
+    }
+    changes = compute_change_summary(working, _OBS_ORIG, 0.5, 0.5)
+    name_changes = [c for c in changes if "name" in c["field"]]
+    assert len(name_changes) == 1
+    assert name_changes[0]["old"] is None
+    assert name_changes[0]["new"] == "New name"

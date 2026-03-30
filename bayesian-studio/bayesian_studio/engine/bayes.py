@@ -87,10 +87,31 @@ def _extract_template_entity_ids(observations: list[dict]) -> list[str]:
         if obs.get("platform") == "template":
             tpl = obs.get("value_template", "")
             found = re.findall(
-                r"(?:states|state_attr)\(\s*['\"]([^'\"]+)['\"]", tpl
+                r"(?:states|state_attr|is_state|is_state_attr|has_value)\(\s*['\"]([^'\"]+)['\"]",
+                tpl,
             )
             entity_ids.update(found)
+            for m in re.finditer(r"states\.([a-z_]+)\.([a-z0-9_]+)", tpl):
+                entity_ids.add(f"{m.group(1)}.{m.group(2)}")
     return list(entity_ids)
+
+
+def extract_template_entity_ids_for_obs(obs: dict) -> list[str]:
+    """Extract entity IDs referenced in a single template observation.
+
+    Returns a deduplicated list in order of first appearance.
+    Returns [] for non-template observations.
+    """
+    if obs.get("platform") != "template":
+        return []
+    tpl = obs.get("value_template", "")
+    found = re.findall(
+        r"(?:states|state_attr|is_state|is_state_attr|has_value)\(\s*['\"]([^'\"]+)['\"]",
+        tpl,
+    )
+    for m in re.finditer(r"states\.([a-z_]+)\.([a-z0-9_]+)", tpl):
+        found.append(f"{m.group(1)}.{m.group(2)}")
+    return list(dict.fromkeys(found))
 
 
 def compute_probability_trace(
@@ -102,6 +123,7 @@ def compute_probability_trace(
     end_ts: float,
     lat: float,
     lon: float,
+    tz=None,
 ) -> dict:
     """Compute a Bayesian probability trace over the given time window.
 
@@ -120,10 +142,29 @@ def compute_probability_trace(
         for ts in tl["ts"]
         if start_ts <= ts < end_ts
     })
+    # Template observations may depend on time (now(), sun elevation, today_at).
+    # Inject synthetic timestamps with adaptive resolution:
+    #   last 24h → every 40s, last 7d → every 5min, older → every 15min
+    has_templates = any(o.get("platform") == "template" for o in observations)
+    if has_templates:
+        _24h = 86400.0
+        _7d = 604800.0
+        t = float(start_ts)
+        while t < end_ts:
+            age = end_ts - t
+            if age <= _24h:
+                step = 40.0
+            elif age <= _7d:
+                step = 300.0
+            else:
+                step = 900.0
+            event_timestamps.append(t)
+            t += step
+        event_timestamps = sorted(set(event_timestamps))
     if not event_timestamps:
         event_timestamps = [float(start_ts)]
 
-    env, ctx = build_jinja2_env(timelines, lat, lon)
+    env, ctx = build_jinja2_env(timelines, lat, lon, tz=tz)
 
     compiled_templates: dict = {}
     template_errors: list = []

@@ -23,6 +23,34 @@ def load_location(config_dir: str) -> list[float]:
     return [float(d.get("latitude", 0.0)), float(d.get("longitude", 0.0))]
 
 
+def load_timezone(config_dir: str) -> str:
+    """Return the IANA timezone string from HA config (e.g. 'Europe/London')."""
+    path = os.path.join(config_dir, ".storage", "core.config")
+    with open(path) as f:
+        data = json.load(f)
+    return data.get("data", {}).get("time_zone", "UTC")
+
+
+def search_entity_ids(query: str, config_dir: str, limit: int = 50) -> list[str]:
+    """Return entity IDs from the registry whose entity_id contains query as a substring.
+
+    Case-insensitive. Returns up to `limit` results, sorted alphabetically.
+    Returns [] if query is empty.
+    """
+    if not query:
+        return []
+    registry_path = os.path.join(config_dir, ".storage", "core.entity_registry")
+    with open(registry_path) as f:
+        registry = json.load(f)
+    q = query.lower()
+    matches = [
+        e["entity_id"]
+        for e in registry["data"]["entities"]
+        if q in e["entity_id"].lower()
+    ]
+    return sorted(matches)[:limit]
+
+
 def get_bayesian_entity_ids(pattern: str, config_dir: str) -> list[str]:
     """Expand a glob pattern against all Bayesian sensor entity_ids in the registry.
 
@@ -40,6 +68,40 @@ def get_bayesian_entity_ids(pattern: str, config_dir: str) -> list[str]:
     if "*" in pattern or "?" in pattern or "[" in pattern:
         return sorted(eid for eid in bayesian_ids if fnmatch.fnmatch(eid, pattern))
     return [pattern] if pattern in bayesian_ids else []
+
+
+def extract_observation_names(file_path: str, unique_id: str) -> list[str]:
+    """Extract inline comments on the 'platform' key for each observation.
+
+    These comments serve as friendly names in the Studio UI.
+    Returns one string per observation; empty string where no comment exists.
+    Returns [] if the sensor is not found.
+    """
+    from ruamel.yaml import YAML
+    from bayesian_studio.engine.config_writer import find_sensor
+
+    yaml = YAML()
+    yaml.preserve_quotes = True
+    try:
+        with open(file_path) as f:
+            data = yaml.load(f)
+    except Exception:
+        return []
+
+    sensor = find_sensor(data, unique_id)
+    if sensor is None:
+        return []
+
+    names = []
+    for obs in sensor.get("observations", []):
+        name = ""
+        token_list = obs.ca.items.get("platform")
+        if token_list and len(token_list) > 2 and token_list[2] is not None:
+            raw = token_list[2].value.strip()
+            if raw.startswith("#"):
+                name = raw[1:].strip()
+        names.append(name)
+    return names
 
 
 def load_bayesian_config(

@@ -1,10 +1,13 @@
 """Bayesian Studio — sensor overview with calibration health."""
 import os
-from datetime import datetime, timedelta, timezone
+import time
+from datetime import datetime, timezone
 
 import streamlit as st
 
-from bayesian_studio.engine.config_loader import get_bayesian_entity_ids, load_bayesian_config
+from zoneinfo import ZoneInfo
+
+from bayesian_studio.engine.config_loader import get_bayesian_entity_ids, load_bayesian_config, load_timezone
 from bayesian_studio.engine.database import get_engine, get_read_connection
 from bayesian_studio.engine.state_db import load_state_timelines
 from bayesian_studio.health import (
@@ -14,10 +17,21 @@ from bayesian_studio.health import (
 
 CONFIG_DIR = os.environ.get("HASS_CONFIG", "/config")
 
-WINDOW_DAYS = 7
-now = datetime.now(timezone.utc)
-end_ts = now.timestamp()
-start_ts = (now - timedelta(days=WINDOW_DAYS)).timestamp()
+_QUANT = 300          # 5-minute quantization for stable cache keys
+_LOAD_TARGET = 8.0    # target total page-load seconds
+_BENCH_WINDOW = 1800  # 30-minute benchmark window
+_MIN_WINDOW = 3600    # 1-hour floor
+_MAX_WINDOW = 7 * 86400  # 7-day ceiling
+
+
+@st.cache_resource(show_spinner=False)
+def _get_local_tz():
+    return ZoneInfo(load_timezone(CONFIG_DIR))
+
+
+now = datetime.now(_get_local_tz())
+_raw_end = now.timestamp()
+end_ts = _raw_end - (_raw_end % _QUANT) + _QUANT  # round up to next 5-min boundary
 
 
 # ---------------------------------------------------------------------------
@@ -51,9 +65,41 @@ def _load_sensor_timelines(sensor_id: str, obs_entity_ids: tuple, s: float, e: f
         return load_state_timelines(all_ids, s, e, load_attrs=False, conn=conn)
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def _get_window(sensor_count: int, bench_sid: str, bench_obs_ids: tuple, _end_ts: float) -> int:
+    """Benchmark one sensor at 30 min and return window_seconds within the 8s budget.
+
+    Cached with the same TTL as the timeline loader so the window stays stable
+    within a cache period and _load_sensor_timelines cache hits are preserved.
+    """
+    b_start = _end_ts - _BENCH_WINDOW
+    t0 = time.perf_counter()
+    _load_sensor_timelines(bench_sid, bench_obs_ids, b_start, _end_ts)
+    elapsed = time.perf_counter() - t0
+
+    # Near-zero elapsed means the DB call was cached (warm reload) or the DB
+    # is empty. In both cases the full window is fine.
+    if elapsed < 0.005:
+        return _MAX_WINDOW
+
+    budget_per_sensor = _LOAD_TARGET / sensor_count
+    window = _BENCH_WINDOW * (budget_per_sensor / elapsed)
+    window = max(_MIN_WINDOW, min(_MAX_WINDOW, window))
+    # Quantize to 5-min boundary so start_ts is stable across renders
+    return int(round(window / _QUANT) * _QUANT)
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _format_window(seconds: int) -> str:
+    if seconds < 7200:        # < 2 hours → minutes
+        return f"{seconds // 60} minutes"
+    if seconds < 172800:      # < 48 hours → hours
+        return f"{seconds // 3600} hours"
+    return f"{seconds / 86400:.1f} days"
+
 
 def _health_badge(coverage_avg: float, has_problem: bool) -> str:
     if has_problem:
@@ -77,12 +123,25 @@ _SORTABLE = {"Entity", "Obs", "Coverage", "Issues", "Fire freq", "Prior", "Thres
 # Page
 # ---------------------------------------------------------------------------
 
-st.caption(f"Last {WINDOW_DAYS} days · {now.strftime('%Y-%m-%d %H:%M')} UTC")
-
 sensor_ids = _get_sensor_ids()
 if not sensor_ids:
     st.error(f"No Bayesian sensors found in {CONFIG_DIR}.")
     st.stop()
+
+# --- Benchmark: find first sensor with valid config ---
+window_seconds = _MAX_WINDOW
+for _bench_sid in sensor_ids:
+    _bench_raw, _ = _get_config(_bench_sid)
+    if _bench_raw is not None:
+        _bench_obs_ids = tuple(sorted(
+            obs["entity_id"] for obs in _bench_raw.get("observations", []) if "entity_id" in obs
+        ))
+        window_seconds = _get_window(len(sensor_ids), _bench_sid, _bench_obs_ids, end_ts)
+        break
+
+start_ts = end_ts - window_seconds
+
+st.caption(f"Last {_format_window(window_seconds)} · {now.strftime('%Y-%m-%d %H:%M %Z')}")
 
 # --- Build rows: config instant, stats from per-sensor cached timeline queries ---
 rows = []
@@ -178,4 +237,4 @@ for row in rows:
     cols[8].write(row["Source"])
     if cols[9].button("🔧", key=f"tune_{row['_sid']}"):
         st.session_state["_nav_sensor"] = row["_sid"]
-        st.switch_page("pages/2_Studio.py")
+        st.switch_page("pages/bayesian_details.py")
