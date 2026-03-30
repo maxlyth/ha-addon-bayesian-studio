@@ -5,7 +5,24 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "bayesian-studio"
 version = "0.4.10"
+description = "Visual interactive tuning UI for Home Assistant Bayesian binary sensors"
+readme = "README.md"
+license = {text = "MIT"}
 requires-python = ">=3.10"
+authors = [{name = "Max Lyth"}]
+keywords = ["home-assistant", "bayesian", "binary-sensor", "tuning"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Home Automation",
+]
+
+[project.urls]
+Homepage = "https://github.com/maxlyth/ha-addon-bayesian-studio"
+Repository = "https://github.com/maxlyth/ha-addon-bayesian-studio"
+Issues = "https://github.com/maxlyth/ha-addon-bayesian-studio/issues"
+Changelog = "https://github.com/maxlyth/ha-addon-bayesian-studio/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 test = [

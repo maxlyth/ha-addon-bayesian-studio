@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.10] - 2026-03-30
+
+### Added
+- Full HA Jinja2 template extension support: `utcnow()`, `today_at()`, `as_timestamp()`, `as_datetime()`, `as_local()`, `strptime()`, `timedelta()`, `float()`, `int()`, `bool()`, `is_number()`, `iif()` — available as both globals and filters
+- State access functions: `is_state()`, `is_state_attr()`, `has_value()`, dotted `states.domain.name` access
+- Adaptive synthetic timestamps for template observations: 40s (last 24h), 5min (last 7d), 15min (older) — ensures time-dependent templates (sun elevation, `now()`) are re-evaluated at appropriate intervals
+- Observation friendly names: stored as inline YAML comments, editable per observation, maintained through add/remove/reset
+- Auto-backfill on save for selected time period with full-history backfill option
+- Dynamic overview page time window: benchmarks system performance and adjusts window (1h–7d) to target 8-second page load
+- Overview page health metrics: observation coverage, fire frequency, health badges
+
+### Fixed
+- Sun elevation template evaluating as active after sunset — synthetic timestamps ensure re-evaluation between entity state changes
+- Deduplication in backfill: skip rows where probability and state are unchanged (prevents DB bloat from synthetic timestamps)
+
 ## [0.3.1] - 2026-03-27
 
 ### Fixed
