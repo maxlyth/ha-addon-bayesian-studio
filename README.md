@@ -4,15 +4,19 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![HA Add-on](https://img.shields.io/badge/HA-Add--on-41BDF5?logo=homeassistant)
 
-Visual interactive tuning UI for Home Assistant Bayesian binary sensors. Runs as a local HA Supervisor add-on with ingress.
+Visual interactive tuning UI for Home Assistant Bayesian binary sensors that can recalculate historical outcomes on current observation configuration. Bayesian Studio runs as a local HA Supervisor add-on with ingress.
 
 ## The problem
-Bayesian sensors should be incredibly useful in Home Assistant for non-deterministic outcomes based on multiple entities (Fuzzy logic) but in practice are rarely used for two reasons:
-1. A sensor requires foundations parameters that are then modulated by multiple observations. The values to set for teh parameters are not obvious and determining starting values general requires inspecting historical trends.
-2. Sensors calculate a probability based on observations and trigger at a threshold. It is only possible to calculate the current probability and record that going forward. Days must pass to collect new data by which time the goal has been forgotten.
+
+Bayesian sensors should be incredibly useful in Home Assistant for non-deterministic outcomes based on multiple entities (fuzzy logic) but in practice are rarely used for two reasons:
+1. A sensor requires foundation parameters that are then modulated by multiple observations. The values to set for the parameters are not obvious and determining starting values generally requires inspecting historical entity trends which is very awkward within the HA UI.
+2. Sensors calculate a probability based on observations and trigger at a threshold. Within HA it is only possible to calculate the current probability and record that going forward. Days must pass to collect new data by which time the goal has been forgotten. The iteration cycle is just too long to be viable.
 
 ## The solution
-Bayesian studio allows the observations and parameters to be freely explored and restrospectively calculates and displays the probability timeline so a user can see how that correlates with what they expected.
+
+Bayesian studio allows the observations and parameters to be freely explored and restrospectively calculates and displays the probability timeline so a user can see how that correlates with how the entities changed and ultimately what result was expected.
+
+Bayesian Studio gives an overview for all the bayesian sensors in an HA instance and supports modification and tuning of both old-school sensors defined in YAML and more recently supported JSON sensors created in the UI.
 
 ## Features
 
