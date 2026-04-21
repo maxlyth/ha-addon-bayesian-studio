@@ -17,13 +17,6 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Topic :: Home Automation",
 ]
-
-[project.urls]
-Homepage = "https://github.com/maxlyth/ha-addon-bayesian-studio"
-Repository = "https://github.com/maxlyth/ha-addon-bayesian-studio"
-Issues = "https://github.com/maxlyth/ha-addon-bayesian-studio/issues"
-Changelog = "https://github.com/maxlyth/ha-addon-bayesian-studio/blob/main/CHANGELOG.md"
-
 dependencies = [
     "streamlit>=1.32",
     "plotly>=5.18",
@@ -35,6 +28,12 @@ dependencies = [
     "requests>=2.31",
     "pyyaml>=6.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/maxlyth/ha-addon-bayesian-studio"
+Repository = "https://github.com/maxlyth/ha-addon-bayesian-studio"
+Issues = "https://github.com/maxlyth/ha-addon-bayesian-studio/issues"
+Changelog = "https://github.com/maxlyth/ha-addon-bayesian-studio/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 test = [
