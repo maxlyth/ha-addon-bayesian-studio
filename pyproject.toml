@@ -24,17 +24,21 @@ Repository = "https://github.com/maxlyth/ha-addon-bayesian-studio"
 Issues = "https://github.com/maxlyth/ha-addon-bayesian-studio/issues"
 Changelog = "https://github.com/maxlyth/ha-addon-bayesian-studio/blob/main/CHANGELOG.md"
 
+dependencies = [
+    "streamlit>=1.32",
+    "plotly>=5.18",
+    "sqlalchemy>=2.0",
+    "pymysql>=1.1",
+    "pg8000>=1.30",
+    "ruamel.yaml>=0.18",
+    "jinja2>=3.1",
+    "requests>=2.31",
+    "pyyaml>=6.0",
+]
+
 [project.optional-dependencies]
 test = [
     "pytest",
-    "pyyaml",
-    "jinja2",
-    "sqlalchemy",
-    "pymysql",
-    "pg8000",
-    "streamlit>=1.32",
-    "plotly",
-    "requests",
 ]
 
 [tool.setuptools.packages.find]
