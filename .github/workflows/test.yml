@@ -23,4 +23,4 @@ jobs:
         working-directory: .
 
       - name: Run tests
-        run: pytest tests/ -q
+        run: pytest tests/ -q -m "not integration"

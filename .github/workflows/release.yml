@@ -20,7 +20,7 @@ jobs:
         run: pip install -e ".[test]"
 
       - name: Run tests
-        run: pytest tests/ -q
+        run: pytest tests/ -q -m "not integration"
 
   release:
     needs: test

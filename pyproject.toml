@@ -34,6 +34,7 @@ test = [
     "pg8000",
     "streamlit>=1.32",
     "plotly",
+    "requests",
 ]
 
 [tool.setuptools.packages.find]
