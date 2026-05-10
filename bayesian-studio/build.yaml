@@ -1,0 +1,9 @@
+build_from:
+  aarch64: ghcr.io/home-assistant/aarch64-base:3.19
+  amd64: ghcr.io/home-assistant/amd64-base:3.19
+
+labels:
+  org.opencontainers.image.title: "Bayesian Studio"
+  org.opencontainers.image.description: "Visual interactive tuning UI for Bayesian binary sensors"
+  org.opencontainers.image.source: "https://github.com/maxlyth/ha-addon-bayesian-studio"
+  org.opencontainers.image.licenses: "MIT"

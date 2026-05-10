@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bayesian-studio"
-version = "0.4.10"
+version = "0.4.11"
 description = "Visual interactive tuning UI for Home Assistant Bayesian binary sensors"
 readme = "README.md"
 license = {text = "MIT"}

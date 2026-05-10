@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.11] - 2026-05-10
+
+### Changed
+- Distribution: add-on now installs via pre-built multi-arch images on GHCR (`ghcr.io/maxlyth/{arch}-bayesian-studio`) instead of building from source on the supervisor host. Faster install, no per-host Dockerfile rebuild. The add-on now belongs to a household add-on collection at `maxlyth/home-assistant-addons`.
+
+### Added
+- `bayesian-studio/build.yaml` — declares per-arch base images (HA 3.19 base) and OCI labels.
+- `.github/workflows/builder.yaml` — multi-arch (`aarch64`, `amd64`) build/push to GHCR on every push to `main`. Adapted from the canonical `home-assistant/builder@2026.03.2` pattern.
+- `.github/workflows/lint.yaml` — runs `frenck/action-addon-linter` on push/PR and nightly.
+
 ## [0.4.10] - 2026-03-30
 
 ### Added
